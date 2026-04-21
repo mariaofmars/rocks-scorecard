@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mars Men · Rocks Scorecard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+  :root {
+    --mm-orange: #FF5600;
+    --mm-rust: #963821;
+    --mm-black: #000000;
+    --mm-white: #FFFFFF;
+    --mm-cream: #e8c9a0;
+    --mm-amber: #ff8c42;
+    --mm-deep: #5c2210;
+    --mm-darkest: #3d1508;
+    --bg: #0e0e0e;
+    --bg-card: #161616;
+    --bg-card-hover: #1c1c1c;
+    --bg-track: rgba(255,255,255,0.06);
+    --text-primary: #e8e8e8;
+    --text-secondary: #888;
+    --text-muted: #555;
+    --border: rgba(255,255,255,0.06);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
+    padding: 20px;
+    min-height: 100vh;
+  }
+
+  .sc { max-width: 900px; margin: 0 auto; }
+
+  .sc-hdr {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .sc-hdr h1 {
+    font-size: 17px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .qpill-wrap { position: relative; display: inline-block; }
+  .qpill {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--mm-orange);
+    background: rgba(255,86,0,0.08);
+    padding: 3px 10px;
+    border-radius: 2px;
+    border: 1px solid rgba(255,86,0,0.2);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .qpill:hover { background: rgba(255,86,0,0.15); }
+  .qp-drop {
+    display: none;
+    position: absolute;
+    right: 0; top: 110%;
+    background: #1a1a1a;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 2px;
+    padding: 10px;
+    z-index: 100;
+    min-width: 170px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
+  .qp-drop.open { display: block; }
+  .qp-drop label {
+    display: block;
+    font-size: 10px;
+    color: var(--text-secondary);
+    margin-bottom: 3px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .qp-drop select, .qp-drop input {
+    width: 100%;
+    padding: 6px 8px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    margin-bottom: 8px;
+    outline: none;
+  }
+  .qp-drop select option { background: var(--bg); }
+  .qp-btn {
+    width: 100%;
+    padding: 6px;
+    background: var(--mm-orange);
+    color: var(--mm-white);
+    border: none;
+    border-radius: 2px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+  }
+  .qp-btn:hover { opacity: 0.85; }
+
+  .sc-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    letter-spacing: 0.02em;
+  }
+
+  .avg {
+    background: var(--bg-card);
+    border-radius: 2px;
+    padding: 16px 20px;
+    margin-bottom: 14px;
+    border-left: 3px solid var(--mm-orange);
+  }
+  .avg-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .avg-lbl {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .avg-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--mm-cream);
+  }
+  .avg-num small {
+    font-size: 14px;
+    color: var(--text-muted);
+    font-weight: 400;
+  }
+  .btrk {
+    width: 100%;
+    height: 14px;
+    background: var(--bg-track);
+    border-radius: 1px;
+    overflow: hidden;
+  }
+  .bfill {
+    height: 100%;
+    border-radius: 1px;
+    transition: width 1.2s cubic-bezier(0.22,1,0.36,1);
+    width: 0%;
+  }
+  .scl {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 4px;
+    padding: 0 2px;
+  }
+  .scl span {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--text-muted);
+  }
+  .lgnd {
+    display: flex;
+    gap: 16px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+  .lgnd span {
+    font-size: 10px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .ldot { width: 10px; height: 4px; display: inline-block; }
+
+  .dgrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  @media (max-width: 640px) { .dgrid { grid-template-columns: 1fr; } }
+
+  .dc {
+    background: var(--bg-card);
+    border-radius: 2px;
+    padding: 13px 15px;
+    border: 0.5px solid var(--border);
+    border-left: 3px solid var(--mm-deep);
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .dc:hover {
+    background: var(--bg-card-hover);
+    border-color: rgba(255,255,255,0.1);
+  }
+  .dc-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .dc-nm {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .dc-sc {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--mm-cream);
+  }
+  .dc .btrk { height: 6px; }
+  .srow {
+    display: flex;
+    gap: 1px;
+    margin-top: 6px;
+    height: 3px;
+    overflow: hidden;
+  }
+  .sseg { height: 100%; min-width: 3px; }
+  .dc-ft {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+  }
+  .dc-cnt {
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+  }
+  .ptag {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 1px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .state-msg {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+    font-size: 13px;
+  }
+  .spinner {
+    width: 28px; height: 28px;
+    border: 3px solid var(--bg-track);
+    border-top-color: var(--mm-orange);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 14px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .err-retry {
+    margin-top: 12px;
+    padding: 6px 16px;
+    background: var(--mm-orange);
+    color: var(--mm-white);
+    border: none;
+    border-radius: 2px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+  }
+
+  .ft {
+    text-align: center;
+    margin-top: 16px;
+    font-size: 9px;
+    color: var(--text-muted);
+    opacity: 0.4;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .anim { animation: fadeUp 0.45s ease forwards; opacity: 0; }
+</style>
+</head>
+<body>
+<div class="sc" id="app"></div>
+
+<script>
+var WORKER_URL = 'https://rocks-scorecard-api.maria-011.workers.dev';
+
+var SCORES = {
+  'Not Started':0,'Scoping':12.5,'Planning':25,'Kickoff':37.5,
+  'In build':50,'Review / Feedback':62.5,'Finalizing / QA':75,
+  'Launched / Implemented':87.5,'Done':100
+};
+var S_COLORS = {
+  'Not Started':'#222',
+  'Scoping':'#3d1508',
+  'Planning':'#5c2210',
+  'Kickoff':'#7a2e15',
+  'In build':'#963821',
+  'Review / Feedback':'#c24a1a',
+  'Finalizing / QA':'#d44a00',
+  'Launched / Implemented':'#FF5600',
+  'Done':'#ff8c42'
+};
+
+function currentQuarter() {
+  var m = new Date().getMonth();
+  if (m < 3) return 'Q1';
+  if (m < 6) return 'Q2';
+  if (m < 9) return 'Q3';
+  return 'Q4';
+}
+
+var params = new URLSearchParams(window.location.search);
+var quarter = params.get('quarter') || currentQuarter();
+var year = parseInt(params.get('year')) || new Date().getFullYear();
+var pickerOpen = false;
+
+function loadData() {
+  return fetch(WORKER_URL + '?quarter=' + quarter + '&year=' + year)
+    .then(function(r) {
+      if (!r.ok) return r.json().then(function(e) { throw new Error(e.detail || e.error || 'HTTP ' + r.status); });
+      return r.json();
+    });
+}
+
+function process(rocks) {
+  var map = {};
+  rocks.forEach(function(r) {
+    if (!map[r.team]) map[r.team] = { name: r.team, rocks: [], sc: {} };
+    map[r.team].rocks.push(r);
+    map[r.team].sc[r.status] = (map[r.team].sc[r.status] || 0) + 1;
+  });
+  var teams = Object.values(map).map(function(t) {
+    var sum = t.rocks.reduce(function(a, r) { return a + (SCORES[r.status] || 0); }, 0);
+    t.score = t.rocks.length ? Math.round(sum / t.rocks.length * 10) / 10 : 0;
+    return t;
+  }).sort(function(a, b) { return b.score - a.score; });
+  var avg = teams.length
+    ? Math.round(teams.reduce(function(s, t) { return s + t.score; }, 0) / teams.length * 10) / 10
+    : 0;
+  return { teams: teams, avg: avg, total: rocks.length };
+}
+
+function phase(v) {
+  if (v <= 0) return { l: 'Not started', c: '#555', bg: 'rgba(80,80,80,0.15)' };
+  if (v <= 25) return { l: 'Early stages', c: '#963821', bg: 'rgba(150,56,33,0.12)' };
+  if (v <= 50) return { l: 'Building momentum', c: '#c24a1a', bg: 'rgba(194,74,26,0.1)' };
+  if (v <= 75) return { l: 'Strong progress', c: '#FF5600', bg: 'rgba(255,86,0,0.1)' };
+  return { l: 'Near completion', c: '#ff8c42', bg: 'rgba(255,140,66,0.1)' };
+}
+
+function grad(v) {
+  if (v <= 25) return 'linear-gradient(90deg,#3d1508,#5c2210)';
+  if (v <= 50) return 'linear-gradient(90deg,#5c2210,#963821)';
+  if (v <= 75) return 'linear-gradient(90deg,#963821,#FF5600)';
+  return 'linear-gradient(90deg,#d44a00,#FF5600,#ff8c42)';
+}
+
+function leftBdr(v) {
+  if (v <= 25) return '#5c2210';
+  if (v <= 50) return '#963821';
+  if (v <= 75) return '#d44a00';
+  return '#FF5600';
+}
+
+var $ = function(id) { return document.getElementById(id); };
+
+function render(state, data) {
+  var app = $('app');
+  if (state === 'loading') {
+    app.innerHTML = '<div class="state-msg"><div class="spinner"></div>Loading rocks data\u2026</div>';
+    return;
+  }
+  if (state === 'error') {
+    app.innerHTML = '<div class="state-msg" style="color:#FF5600"><p>\u26A0 ' + data + '</p><button class="err-retry" onclick="init()">Retry</button></div>';
+    return;
+  }
+
+  var teams = data.teams, avg = data.avg, total = data.total;
+  var statusOrder = Object.keys(SCORES);
+
+  app.innerHTML =
+    '<div class="sc-hdr">' +
+      '<h1>Rocks progress</h1>' +
+      '<div class="qpill-wrap">' +
+        '<span class="qpill" id="qp-toggle">' + quarter + ' ' + year + '</span>' +
+        '<div class="qp-drop" id="qp-drop">' +
+          '<label>Quarter</label>' +
+          '<select id="qp-q">' + ['Q1','Q2','Q3','Q4'].map(function(q) { return '<option' + (q === quarter ? ' selected' : '') + '>' + q + '</option>'; }).join('') + '</select>' +
+          '<label>Year</label>' +
+          '<input type="number" id="qp-y" value="' + year + '" min="2025" max="2035"/>' +
+          '<button class="qp-btn" id="qp-go">Load</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="sc-sub">' + total + ' rocks across ' + teams.length + ' departments \u00B7 Updated ' + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + '</div>' +
+
+    '<div class="avg anim" style="animation-delay:.05s">' +
+      '<div class="avg-top">' +
+        '<span class="avg-lbl">Company average</span>' +
+        '<span class="avg-num">' + avg + '<small> / 100</small></span>' +
+      '</div>' +
+      '<div class="btrk"><div class="bfill" id="avg-bar"></div></div>' +
+      '<div class="scl"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>' +
+      '<div class="lgnd">' +
+        '<span><span class="ldot" style="background:linear-gradient(90deg,#3d1508,#5c2210)"></span>Early stages (0\u201325)</span>' +
+        '<span><span class="ldot" style="background:linear-gradient(90deg,#963821,#c24a1a)"></span>Building momentum (26\u201350)</span>' +
+        '<span><span class="ldot" style="background:linear-gradient(90deg,#d44a00,#FF5600)"></span>Strong progress (51\u201375)</span>' +
+        '<span><span class="ldot" style="background:linear-gradient(90deg,#FF5600,#ff8c42)"></span>Near completion (76\u2013100)</span>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="dgrid">' + teams.map(function(t, i) {
+      var ph = phase(t.score);
+      var segs = statusOrder.filter(function(s) { return t.sc[s]; }).map(function(s) {
+        var pct = (t.sc[s] / t.rocks.length) * 100;
+        return '<div class="sseg" style="width:' + pct + '%;background:' + S_COLORS[s] + '" title="' + s + ': ' + t.sc[s] + '"></div>';
+      }).join('');
+      return '<div class="dc anim" style="animation-delay:' + (0.1 + i * 0.06) + 's;border-left-color:' + leftBdr(t.score) + '">' +
+        '<div class="dc-top"><span class="dc-nm">' + t.name + '</span><span class="dc-sc">' + t.score + '</span></div>' +
+        '<div class="btrk"><div class="bfill" id="db-' + i + '" style="background:' + grad(t.score) + '"></div></div>' +
+        '<div class="srow">' + segs + '</div>' +
+        '<div class="dc-ft"><span class="dc-cnt">' + t.rocks.length + ' rock' + (t.rocks.length !== 1 ? 's' : '') + '</span><span class="ptag" style="color:' + ph.c + ';background:' + ph.bg + '">' + ph.l + '</span></div>' +
+      '</div>';
+    }).join('') + '</div>' +
+    '<div class="ft">Mars Men \u00B7 Rocks scorecard</div>';
+
+  requestAnimationFrame(function() {
+    setTimeout(function() {
+      var ab = $('avg-bar');
+      if (ab) { ab.style.width = avg + '%'; ab.style.background = grad(avg); }
+      teams.forEach(function(t, i) {
+        var el = $('db-' + i);
+        if (el) el.style.width = t.score + '%';
+      });
+    }, 80);
+  });
+
+  $('qp-toggle').onclick = function() {
+    pickerOpen = !pickerOpen;
+    $('qp-drop').classList.toggle('open', pickerOpen);
+  };
+  $('qp-go').onclick = function() {
+    quarter = $('qp-q').value;
+    year = parseInt($('qp-y').value);
+    pickerOpen = false;
+    $('qp-drop').classList.remove('open');
+    init();
+  };
+  document.addEventListener('click', function(e) {
+    if (pickerOpen && !e.target.closest('.qpill-wrap')) {
+      pickerOpen = false;
+      $('qp-drop').classList.remove('open');
+    }
+  });
+}
+
+function init() {
+  render('loading');
+  loadData().then(function(json) {
+    render('loaded', process(json.rocks));
+  }).catch(function(e) {
+    render('error', e.message);
+  });
+}
+
+init();
+</script>
+</body>
+</html>
