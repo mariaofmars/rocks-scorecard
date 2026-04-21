@@ -16,9 +16,9 @@
     --mm-amber: #ff8c42;
     --mm-deep: #5c2210;
     --mm-darkest: #3d1508;
-    --bg: #0e0e0e;
-    --bg-card: #161616;
-    --bg-card-hover: #1c1c1c;
+    --bg: transparent;
+    --bg-card: rgba(255,255,255,0.03);
+    --bg-card-hover: rgba(255,255,255,0.05);
     --bg-track: rgba(255,255,255,0.06);
     --text-primary: #e8e8e8;
     --text-secondary: #888;
@@ -32,7 +32,7 @@
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     background: var(--bg);
     color: var(--text-primary);
-    padding: 20px;
+    padding: 8px 4px;
     min-height: 100vh;
   }
 
@@ -424,7 +424,7 @@ function render(state, data) {
 
     '<div class="avg anim" style="animation-delay:.05s">' +
       '<div class="avg-top">' +
-        '<span class="avg-lbl">Company average</span>' +
+        '<span class="avg-lbl">Company average <span style="opacity:0.5;font-weight:400;text-transform:none;letter-spacing:0.02em">\u00B7 ' + total + ' total rocks</span></span>' +
         '<span class="avg-num">' + avg + '<small> / 100</small></span>' +
       '</div>' +
       '<div class="btrk"><div class="bfill" id="avg-bar"></div></div>' +
