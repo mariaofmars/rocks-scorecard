@@ -36,7 +36,7 @@
     min-height: 100vh;
   }
 
-  .sc { max-width: 900px; margin: 0 auto; }
+  .sc { max-width: 100%; margin: 0 auto; }
 
   .sc-hdr {
     display: flex;
@@ -198,7 +198,26 @@
     grid-template-columns: 1fr 1fr;
     gap: 8px;
   }
-  @media (max-width: 640px) { .dgrid { grid-template-columns: 1fr; } }
+  @media (max-width: 640px) {
+    .dgrid {
+      display: flex;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      gap: 8px;
+      padding-bottom: 8px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.1) transparent;
+    }
+    .dgrid::-webkit-scrollbar { height: 4px; }
+    .dgrid::-webkit-scrollbar-track { background: transparent; }
+    .dgrid::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+    .dc {
+      min-width: 75vw;
+      flex-shrink: 0;
+      scroll-snap-align: start;
+    }
+  }
 
   .dc {
     background: var(--bg-card);
