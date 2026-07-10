@@ -322,6 +322,13 @@
     cursor: pointer;
   }
 
+  .pnote {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 10px;
+    letter-spacing: 0.03em;
+  }
+
   .ft {
     text-align: center;
     margin-top: 16px;
@@ -400,14 +407,21 @@ function process(rocks) {
     map[r.team].sc[r.status] = (map[r.team].sc[r.status] || 0) + 1;
   });
   var teams = Object.values(map).map(function(t) {
-    var sum = t.rocks.reduce(function(a, r) { return a + (SCORES[r.status] || 0); }, 0);
-    t.score = t.rocks.length ? Math.round(sum / t.rocks.length * 10) / 10 : 0;
+    // Paused rocks are excluded from averages entirely; they still appear in
+    // rock counts and the status segment bars
+    var active = t.rocks.filter(function(r) { return r.status !== 'Paused'; });
+    t.paused = t.rocks.length - active.length;
+    t.scorable = active.length;
+    var sum = active.reduce(function(a, r) { return a + (SCORES[r.status] || 0); }, 0);
+    t.score = active.length ? Math.round(sum / active.length * 10) / 10 : 0;
     return t;
   }).sort(function(a, b) { return b.score - a.score; });
-  var avg = teams.length
-    ? Math.round(teams.reduce(function(s, t) { return s + t.score; }, 0) / teams.length * 10) / 10
+  var scored = teams.filter(function(t) { return t.scorable; });
+  var avg = scored.length
+    ? Math.round(scored.reduce(function(s, t) { return s + t.score; }, 0) / scored.length * 10) / 10
     : 0;
-  return { teams: teams, avg: avg, total: rocks.length };
+  var paused = teams.reduce(function(s, t) { return s + t.paused; }, 0);
+  return { teams: teams, avg: avg, total: rocks.length, paused: paused };
 }
 
 function phase(v) {
@@ -480,7 +494,7 @@ function render(state, data) {
     '<div class="avg anim" style="animation-delay:.05s">' +
       '<div class="avg-top">' +
         '<span class="avg-lbl">Company average <span style="opacity:0.5;font-weight:400;text-transform:none;letter-spacing:0.02em">\u00B7 ' + total + ' total rocks</span></span>' +
-        '<span class="avg-num">' + avg + '<small> / 100</small></span>' +
+        '<span class="avg-num">' + avg + (data.paused ? '*' : '') + '<small> / 100</small></span>' +
       '</div>' +
       '<div class="btrk"><div class="bfill" id="avg-bar"></div></div>' +
       '<div class="scl"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>' +
@@ -493,18 +507,21 @@ function render(state, data) {
     '</div>' +
 
     '<div class="dgrid">' + teams.map(function(t, i) {
-      var ph = phase(t.score);
+      var ph = t.scorable ? phase(t.score) : { l: 'Paused', c: '#8a7a99', bg: 'rgba(93,74,107,0.2)' };
       var segs = statusOrder.filter(function(s) { return t.sc[s]; }).map(function(s) {
         var pct = (t.sc[s] / t.rocks.length) * 100;
         return '<div class="sseg" style="width:' + pct + '%;background:' + S_COLORS[s] + '" title="' + s + ': ' + t.sc[s] + '"></div>';
       }).join('');
+      var scoreTxt = t.scorable ? t.score + (t.paused ? '*' : '') : '\u2014';
+      var cntTxt = t.rocks.length + ' rock' + (t.rocks.length !== 1 ? 's' : '') + (t.paused ? ' \u00B7 ' + t.paused + ' paused' : '');
       return '<div class="dc anim" style="animation-delay:' + (0.1 + i * 0.06) + 's;border-left-color:' + leftBdr(t.score) + '">' +
-        '<div class="dc-top"><span class="dc-nm">' + t.name + '</span><span class="dc-sc">' + t.score + '</span></div>' +
+        '<div class="dc-top"><span class="dc-nm">' + t.name + '</span><span class="dc-sc">' + scoreTxt + '</span></div>' +
         '<div class="btrk"><div class="bfill" id="db-' + i + '" style="background:' + grad(t.score) + '"></div></div>' +
         '<div class="srow">' + segs + '</div>' +
-        '<div class="dc-ft"><span class="dc-cnt">' + t.rocks.length + ' rock' + (t.rocks.length !== 1 ? 's' : '') + '</span><span class="ptag" style="color:' + ph.c + ';background:' + ph.bg + '">' + ph.l + '</span></div>' +
+        '<div class="dc-ft"><span class="dc-cnt">' + cntTxt + '</span><span class="ptag" style="color:' + ph.c + ';background:' + ph.bg + '">' + ph.l + '</span></div>' +
       '</div>';
     }).join('') + '</div>' +
+    (data.paused ? '<div class="pnote">* ' + data.paused + ' paused rock' + (data.paused !== 1 ? 's' : '') + ' excluded from averages</div>' : '') +
     '<div class="ft">Mars Men \u00B7 Rocks scorecard</div>';
 
   requestAnimationFrame(function() {
