@@ -123,6 +123,20 @@
     letter-spacing: 0.02em;
   }
 
+  .fnote {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--mm-amber);
+    background: rgba(255,140,66,0.08);
+    border: 1px solid rgba(255,140,66,0.18);
+    border-radius: 2px;
+    padding: 4px 9px;
+    margin-bottom: 12px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
   .avg {
     background: var(--bg-card);
     border-radius: 2px;
@@ -332,12 +346,13 @@
 var WORKER_URL = 'https://rocks-scorecard-api.maria-011.workers.dev';
 
 var SCORES = {
-  'Not Started':0,'Scoping':12.5,'Planning':25,'Kickoff':37.5,
+  'Not Started':0,'Paused':0,'Scoping':12.5,'Planning':25,'Kickoff':37.5,
   'In build':50,'Review / Feedback':62.5,'Finalizing / QA':75,
   'Launched / Implemented':87.5,'Done':100
 };
 var S_COLORS = {
   'Not Started':'#222',
+  'Paused':'#5d4a6b',
   'Scoping':'#3d1508',
   'Planning':'#5c2210',
   'Kickoff':'#7a2e15',
@@ -359,10 +374,18 @@ function currentQuarter() {
 var params = new URLSearchParams(window.location.search);
 var quarter = params.get('quarter') || currentQuarter();
 var year = parseInt(params.get('year')) || new Date().getFullYear();
+var pinned = !!params.get('quarter'); // quarter fixed via URL: never auto-fallback
 var pickerOpen = false;
+var fallbackNote = '';
 
-function loadData() {
-  return fetch(WORKER_URL + '?quarter=' + quarter + '&year=' + year)
+var QUARTERS = ['Q1','Q2','Q3','Q4'];
+function prevQuarter(q, y) {
+  var i = QUARTERS.indexOf(q);
+  return i === 0 ? { q: 'Q4', y: y - 1 } : { q: QUARTERS[i - 1], y: y };
+}
+
+function fetchQuarter(q, y) {
+  return fetch(WORKER_URL + '?quarter=' + q + '&year=' + y)
     .then(function(r) {
       if (!r.ok) return r.json().then(function(e) { throw new Error(e.detail || e.error || 'HTTP ' + r.status); });
       return r.json();
@@ -425,21 +448,34 @@ function render(state, data) {
   var teams = data.teams, avg = data.avg, total = data.total;
   var statusOrder = Object.keys(SCORES);
 
-  app.innerHTML =
+  var hdrHTML =
     '<div class="sc-hdr">' +
       '<h1>Progress Scorecard</h1>' +
       '<div class="qpill-wrap">' +
         '<span class="qpill" id="qp-toggle">' + quarter + ' ' + year + '</span>' +
         '<div class="qp-drop" id="qp-drop">' +
           '<label>Quarter</label>' +
-          '<select id="qp-q">' + ['Q1','Q2','Q3','Q4'].map(function(q) { return '<option' + (q === quarter ? ' selected' : '') + '>' + q + '</option>'; }).join('') + '</select>' +
+          '<select id="qp-q">' + QUARTERS.map(function(q) { return '<option' + (q === quarter ? ' selected' : '') + '>' + q + '</option>'; }).join('') + '</select>' +
           '<label>Year</label>' +
           '<input type="number" id="qp-y" value="' + year + '" min="2025" max="2035"/>' +
           '<button class="qp-btn" id="qp-go">Load</button>' +
         '</div>' +
       '</div>' +
-    '</div>' +
+    '</div>';
+  var noteHTML = fallbackNote ? '<div class="fnote">' + fallbackNote + '</div>' : '';
+
+  if (!total) {
+    app.innerHTML = hdrHTML +
+      '<div class="state-msg">No rocks found for ' + quarter + ' ' + year + '.<br><br>' +
+      '<span style="font-size:11px;color:var(--text-muted)">Add rocks to the Notion database with Quarter "' + quarter + '" and Year ' + year + ' and they will show up here automatically.</span></div>' +
+      '<div class="ft">Mars Men \u00B7 Rocks scorecard</div>';
+    bindPicker();
+    return;
+  }
+
+  app.innerHTML = hdrHTML +
     '<div class="sc-sub">' + total + ' rocks across ' + teams.length + ' departments \u00B7 Updated ' + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + '</div>' +
+    noteHTML +
 
     '<div class="avg anim" style="animation-delay:.05s">' +
       '<div class="avg-top">' +
@@ -482,6 +518,10 @@ function render(state, data) {
     }, 80);
   });
 
+  bindPicker();
+}
+
+function bindPicker() {
   $('qp-toggle').onclick = function() {
     pickerOpen = !pickerOpen;
     $('qp-drop').classList.toggle('open', pickerOpen);
@@ -491,20 +531,47 @@ function render(state, data) {
     year = parseInt($('qp-y').value);
     pickerOpen = false;
     $('qp-drop').classList.remove('open');
-    init();
+    init(true);
   };
-  document.addEventListener('click', function(e) {
-    if (pickerOpen && !e.target.closest('.qpill-wrap')) {
-      pickerOpen = false;
-      $('qp-drop').classList.remove('open');
-    }
-  });
 }
 
-function init() {
+document.addEventListener('click', function(e) {
+  if (pickerOpen && !e.target.closest('.qpill-wrap')) {
+    pickerOpen = false;
+    var d = $('qp-drop');
+    if (d) d.classList.remove('open');
+  }
+});
+
+// explicitPick: quarter chosen via the picker. Auto-fallback only applies to the
+// auto-detected current quarter, so an explicitly chosen empty quarter shows its
+// own empty state instead of silently jumping to a different one.
+function init(explicitPick) {
   render('loading');
-  loadData().then(function(json) {
-    render('loaded', process(json.rocks));
+  fallbackNote = '';
+  fetchQuarter(quarter, year).then(function(json) {
+    if (json.rocks.length || explicitPick || pinned) {
+      render('loaded', process(json.rocks));
+      return;
+    }
+    // Current quarter has no rocks yet (typical at the start of a new quarter
+    // before rocks are entered): walk back to the latest quarter that has data.
+    var requested = quarter + ' ' + year;
+    var candidates = [];
+    var p = { q: quarter, y: year };
+    for (var i = 0; i < 4; i++) { p = prevQuarter(p.q, p.y); candidates.push(p); }
+    return candidates.reduce(function(chain, cand) {
+      return chain.then(function(found) {
+        if (found) return found;
+        return fetchQuarter(cand.q, cand.y).then(function(j) {
+          if (j.rocks.length) { quarter = cand.q; year = cand.y; return j; }
+          return null;
+        });
+      });
+    }, Promise.resolve(null)).then(function(found) {
+      if (found) fallbackNote = 'No rocks logged for ' + requested + ' yet · showing ' + quarter + ' ' + year;
+      render('loaded', process(found ? found.rocks : []));
+    });
   }).catch(function(e) {
     render('error', e.message);
   });
