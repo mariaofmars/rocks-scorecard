@@ -32,8 +32,7 @@
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     background: var(--bg);
     color: var(--text-primary);
-    /* extra top padding keeps the quarter pill clear of Notion's embed hover toolbar */
-    padding: 46px 4px 8px;
+    padding: 8px 4px;
     min-height: 100vh;
   }
 
@@ -122,20 +121,6 @@
     color: var(--text-muted);
     margin-bottom: 16px;
     letter-spacing: 0.02em;
-  }
-
-  .fnote {
-    display: inline-block;
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--mm-amber);
-    background: rgba(255,140,66,0.08);
-    border: 1px solid rgba(255,140,66,0.18);
-    border-radius: 2px;
-    padding: 4px 9px;
-    margin-bottom: 12px;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
   }
 
   .avg {
@@ -323,19 +308,6 @@
     cursor: pointer;
   }
 
-  .pstar {
-    font-size: 0.55em;
-    vertical-align: super;
-    letter-spacing: 0;
-  }
-
-  .pnote {
-    font-size: 10px;
-    color: var(--text-muted);
-    margin-top: 10px;
-    letter-spacing: 0.03em;
-  }
-
   .ft {
     text-align: center;
     margin-top: 16px;
@@ -360,21 +332,28 @@
 var WORKER_URL = 'https://rocks-scorecard-api.maria-011.workers.dev';
 
 var SCORES = {
-  'Not Started':0,'Paused':0,'Scoping':12.5,'Planning':25,'Kickoff':37.5,
-  'In build':50,'Review / Feedback':62.5,'Finalizing / QA':75,
-  'Launched / Implemented':87.5,'Done':100
+  'Not Started':0,'Scoping':12.5,'Planning':25,'Kickoff':37.5,
+  'In Progress':50,'Review / Feedback':62.5,'Finalizing / QA':75,
+  'Launched / Implemented':87.5,'Complete':100,
+  'On Hold':25,'Blocked':25
 };
+// Statuses excluded from score calculation (don't drag the average)
+var EXCLUDED_STATUSES = ['Dropped', 'Missed'];
+
 var S_COLORS = {
   'Not Started':'#222',
-  'Paused':'#5d4a6b',
   'Scoping':'#3d1508',
   'Planning':'#5c2210',
   'Kickoff':'#7a2e15',
-  'In build':'#963821',
+  'In Progress':'#963821',
   'Review / Feedback':'#c24a1a',
   'Finalizing / QA':'#d44a00',
   'Launched / Implemented':'#FF5600',
-  'Done':'#ff8c42'
+  'Complete':'#ff8c42',
+  'On Hold':'#555',
+  'Blocked':'#8b2020',
+  'Dropped':'#333',
+  'Missed':'#333'
 };
 
 function currentQuarter() {
@@ -388,18 +367,10 @@ function currentQuarter() {
 var params = new URLSearchParams(window.location.search);
 var quarter = params.get('quarter') || currentQuarter();
 var year = parseInt(params.get('year')) || new Date().getFullYear();
-var pinned = !!params.get('quarter'); // quarter fixed via URL: never auto-fallback
 var pickerOpen = false;
-var fallbackNote = '';
 
-var QUARTERS = ['Q1','Q2','Q3','Q4'];
-function prevQuarter(q, y) {
-  var i = QUARTERS.indexOf(q);
-  return i === 0 ? { q: 'Q4', y: y - 1 } : { q: QUARTERS[i - 1], y: y };
-}
-
-function fetchQuarter(q, y) {
-  return fetch(WORKER_URL + '?quarter=' + q + '&year=' + y)
+function loadData() {
+  return fetch(WORKER_URL + '?quarter=' + quarter + '&year=' + year)
     .then(function(r) {
       if (!r.ok) return r.json().then(function(e) { throw new Error(e.detail || e.error || 'HTTP ' + r.status); });
       return r.json();
@@ -414,21 +385,18 @@ function process(rocks) {
     map[r.team].sc[r.status] = (map[r.team].sc[r.status] || 0) + 1;
   });
   var teams = Object.values(map).map(function(t) {
-    // Paused rocks are excluded from averages entirely; they still appear in
-    // rock counts and the status segment bars
-    var active = t.rocks.filter(function(r) { return r.status !== 'Paused'; });
-    t.paused = t.rocks.length - active.length;
-    t.scorable = active.length;
-    var sum = active.reduce(function(a, r) { return a + (SCORES[r.status] || 0); }, 0);
-    t.score = active.length ? Math.round(sum / active.length * 10) / 10 : 0;
+    // Filter out Dropped/Missed rocks from scoring (but keep them in counts/display)
+    var scoredRocks = t.rocks.filter(function(r) { return EXCLUDED_STATUSES.indexOf(r.status) === -1; });
+    var sum = scoredRocks.reduce(function(a, r) { return a + (SCORES[r.status] || 0); }, 0);
+    t.score = scoredRocks.length ? Math.round(sum / scoredRocks.length * 10) / 10 : 0;
+    t.scoredCount = scoredRocks.length;
+    t.excludedCount = t.rocks.length - scoredRocks.length;
     return t;
   }).sort(function(a, b) { return b.score - a.score; });
-  var scored = teams.filter(function(t) { return t.scorable; });
-  var avg = scored.length
-    ? Math.round(scored.reduce(function(s, t) { return s + t.score; }, 0) / scored.length * 10) / 10
+  var avg = teams.length
+    ? Math.round(teams.reduce(function(s, t) { return s + t.score; }, 0) / teams.length * 10) / 10
     : 0;
-  var paused = teams.reduce(function(s, t) { return s + t.paused; }, 0);
-  return { teams: teams, avg: avg, total: rocks.length, paused: paused };
+  return { teams: teams, avg: avg, total: rocks.length };
 }
 
 function phase(v) {
@@ -469,39 +437,26 @@ function render(state, data) {
   var teams = data.teams, avg = data.avg, total = data.total;
   var statusOrder = Object.keys(SCORES);
 
-  var hdrHTML =
+  app.innerHTML =
     '<div class="sc-hdr">' +
       '<h1>Progress Scorecard</h1>' +
       '<div class="qpill-wrap">' +
         '<span class="qpill" id="qp-toggle">' + quarter + ' ' + year + '</span>' +
         '<div class="qp-drop" id="qp-drop">' +
           '<label>Quarter</label>' +
-          '<select id="qp-q">' + QUARTERS.map(function(q) { return '<option' + (q === quarter ? ' selected' : '') + '>' + q + '</option>'; }).join('') + '</select>' +
+          '<select id="qp-q">' + ['Q1','Q2','Q3','Q4'].map(function(q) { return '<option' + (q === quarter ? ' selected' : '') + '>' + q + '</option>'; }).join('') + '</select>' +
           '<label>Year</label>' +
           '<input type="number" id="qp-y" value="' + year + '" min="2025" max="2035"/>' +
           '<button class="qp-btn" id="qp-go">Load</button>' +
         '</div>' +
       '</div>' +
-    '</div>';
-  var noteHTML = fallbackNote ? '<div class="fnote">' + fallbackNote + '</div>' : '';
-
-  if (!total) {
-    app.innerHTML = hdrHTML +
-      '<div class="state-msg">No rocks found for ' + quarter + ' ' + year + '.<br><br>' +
-      '<span style="font-size:11px;color:var(--text-muted)">Add rocks to the Notion database with Quarter "' + quarter + '" and Year ' + year + ' and they will show up here automatically.</span></div>' +
-      '<div class="ft">Mars Men \u00B7 Rocks scorecard</div>';
-    bindPicker();
-    return;
-  }
-
-  app.innerHTML = hdrHTML +
+    '</div>' +
     '<div class="sc-sub">' + total + ' rocks across ' + teams.length + ' departments \u00B7 Updated ' + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + '</div>' +
-    noteHTML +
 
     '<div class="avg anim" style="animation-delay:.05s">' +
       '<div class="avg-top">' +
         '<span class="avg-lbl">Company average <span style="opacity:0.5;font-weight:400;text-transform:none;letter-spacing:0.02em">\u00B7 ' + total + ' total rocks</span></span>' +
-        '<span class="avg-num">' + avg + (data.paused ? '<span class="pstar">*</span>' : '') + '<small> / 100</small></span>' +
+        '<span class="avg-num">' + avg + '<small> / 100</small></span>' +
       '</div>' +
       '<div class="btrk"><div class="bfill" id="avg-bar"></div></div>' +
       '<div class="scl"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>' +
@@ -514,21 +469,18 @@ function render(state, data) {
     '</div>' +
 
     '<div class="dgrid">' + teams.map(function(t, i) {
-      var ph = t.scorable ? phase(t.score) : { l: 'Paused', c: '#8a7a99', bg: 'rgba(93,74,107,0.2)' };
+      var ph = phase(t.score);
       var segs = statusOrder.filter(function(s) { return t.sc[s]; }).map(function(s) {
         var pct = (t.sc[s] / t.rocks.length) * 100;
         return '<div class="sseg" style="width:' + pct + '%;background:' + S_COLORS[s] + '" title="' + s + ': ' + t.sc[s] + '"></div>';
       }).join('');
-      var scoreTxt = t.scorable ? t.score + (t.paused ? '<span class="pstar">*</span>' : '') : '\u2014';
-      var cntTxt = t.rocks.length + ' rock' + (t.rocks.length !== 1 ? 's' : '') + (t.paused ? ' \u00B7 ' + t.paused + ' paused' : '');
       return '<div class="dc anim" style="animation-delay:' + (0.1 + i * 0.06) + 's;border-left-color:' + leftBdr(t.score) + '">' +
-        '<div class="dc-top"><span class="dc-nm">' + t.name + '</span><span class="dc-sc">' + scoreTxt + '</span></div>' +
+        '<div class="dc-top"><span class="dc-nm">' + t.name + '</span><span class="dc-sc">' + t.score + '</span></div>' +
         '<div class="btrk"><div class="bfill" id="db-' + i + '" style="background:' + grad(t.score) + '"></div></div>' +
         '<div class="srow">' + segs + '</div>' +
-        '<div class="dc-ft"><span class="dc-cnt">' + cntTxt + '</span><span class="ptag" style="color:' + ph.c + ';background:' + ph.bg + '">' + ph.l + '</span></div>' +
+        '<div class="dc-ft"><span class="dc-cnt">' + t.rocks.length + ' rock' + (t.rocks.length !== 1 ? 's' : '') + (t.excludedCount ? ' (' + t.excludedCount + ' dropped/missed)' : '') + '</span><span class="ptag" style="color:' + ph.c + ';background:' + ph.bg + '">' + ph.l + '</span></div>' +
       '</div>';
     }).join('') + '</div>' +
-    (data.paused ? '<div class="pnote">* ' + data.paused + ' paused rock' + (data.paused !== 1 ? 's' : '') + ' excluded from averages</div>' : '') +
     '<div class="ft">Mars Men \u00B7 Rocks scorecard</div>';
 
   requestAnimationFrame(function() {
@@ -542,10 +494,6 @@ function render(state, data) {
     }, 80);
   });
 
-  bindPicker();
-}
-
-function bindPicker() {
   $('qp-toggle').onclick = function() {
     pickerOpen = !pickerOpen;
     $('qp-drop').classList.toggle('open', pickerOpen);
@@ -555,47 +503,20 @@ function bindPicker() {
     year = parseInt($('qp-y').value);
     pickerOpen = false;
     $('qp-drop').classList.remove('open');
-    init(true);
+    init();
   };
+  document.addEventListener('click', function(e) {
+    if (pickerOpen && !e.target.closest('.qpill-wrap')) {
+      pickerOpen = false;
+      $('qp-drop').classList.remove('open');
+    }
+  });
 }
 
-document.addEventListener('click', function(e) {
-  if (pickerOpen && !e.target.closest('.qpill-wrap')) {
-    pickerOpen = false;
-    var d = $('qp-drop');
-    if (d) d.classList.remove('open');
-  }
-});
-
-// explicitPick: quarter chosen via the picker. Auto-fallback only applies to the
-// auto-detected current quarter, so an explicitly chosen empty quarter shows its
-// own empty state instead of silently jumping to a different one.
-function init(explicitPick) {
+function init() {
   render('loading');
-  fallbackNote = '';
-  fetchQuarter(quarter, year).then(function(json) {
-    if (json.rocks.length || explicitPick || pinned) {
-      render('loaded', process(json.rocks));
-      return;
-    }
-    // Current quarter has no rocks yet (typical at the start of a new quarter
-    // before rocks are entered): walk back to the latest quarter that has data.
-    var requested = quarter + ' ' + year;
-    var candidates = [];
-    var p = { q: quarter, y: year };
-    for (var i = 0; i < 4; i++) { p = prevQuarter(p.q, p.y); candidates.push(p); }
-    return candidates.reduce(function(chain, cand) {
-      return chain.then(function(found) {
-        if (found) return found;
-        return fetchQuarter(cand.q, cand.y).then(function(j) {
-          if (j.rocks.length) { quarter = cand.q; year = cand.y; return j; }
-          return null;
-        });
-      });
-    }, Promise.resolve(null)).then(function(found) {
-      if (found) fallbackNote = 'No rocks logged for ' + requested + ' yet · showing ' + quarter + ' ' + year;
-      render('loaded', process(found ? found.rocks : []));
-    });
+  loadData().then(function(json) {
+    render('loaded', process(json.rocks));
   }).catch(function(e) {
     render('error', e.message);
   });
