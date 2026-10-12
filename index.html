@@ -66,6 +66,10 @@
     transition: background 0.15s;
   }
   .qpill:hover { background: rgba(255,86,0,0.15); }
+  /* Inside a Notion embed, Notion overlays its comment/expand/menu buttons on the
+     top-right corner of the iframe. They live in the parent page, so nothing in here
+     can stack above them; shift the picker left of that zone when embedded. */
+  body.embedded .qpill-wrap { margin-right: 110px; }
   .qp-drop {
     display: none;
     position: absolute;
@@ -199,6 +203,9 @@
     gap: 8px;
   }
   @media (max-width: 640px) {
+    /* Touch devices get no hover overlay from Notion, and the header is too
+       narrow to give up 110px, so the embedded offset is desktop-only. */
+    body.embedded .qpill-wrap { margin-right: 0; }
     .dgrid {
       display: flex;
       overflow-x: auto;
@@ -363,6 +370,8 @@ function currentQuarter() {
   if (m < 9) return 'Q3';
   return 'Q4';
 }
+
+if (window.self !== window.top) document.body.classList.add('embedded');
 
 var params = new URLSearchParams(window.location.search);
 var quarter = params.get('quarter') || currentQuarter();

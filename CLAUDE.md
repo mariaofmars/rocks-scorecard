@@ -118,7 +118,8 @@ Mars Men branded. Do not reference Protocol brand (separate personal project).
 
 ### Notion embed notes
 
-- Body padding is `8px 4px` to sit flush in the embed. Do not reduce further or the quarter picker gets covered by Notion's embed UI controls (comment, expand, menu buttons in the top right).
+- Body padding is `8px 4px` to sit flush in the embed.
+- Notion overlays its embed controls (comment, expand, menu buttons) on the top-right corner of the iframe. They live in Notion's own page, so no z-index inside the widget can beat them. Fix (2026-10-12): the widget detects iframe embedding (`window.self !== window.top`) and adds class `embedded` to `body`, which gives `.qpill-wrap` a 110px right margin so the quarter picker clears the overlay zone. Standalone view is unaffected. The margin is reset to 0 under 640px since touch devices get no hover overlay and narrow headers can't spare the space. If Notion changes the size of its overlay controls, adjust the 110px.
 - Cache busting: after deploying changes, the Notion embed URL may need a `?v=N` query param appended (increment N) to force a fresh load. Sometimes deleting and re-adding the embed block is needed.
 - The widget is synced to ~32 other pages via Notion synced blocks.
 
