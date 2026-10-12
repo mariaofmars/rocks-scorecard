@@ -80,7 +80,7 @@ Single self-contained HTML file. No build step, no dependencies beyond Google Fo
 
 **`S_COLORS` object (~line 343):** Maps status names to hex colors for the status breakdown mini-bar on each department card.
 
-**`process()` function (~line 380):** Groups rocks by team, calculates weighted averages, sorts teams by score (highest first). Handles exclusion of Dropped/Missed.
+**`process()` function (~line 380):** Groups rocks by team, calculates weighted averages, sorts teams by score (highest first). Handles exclusion of Dropped/Missed. Also drops rocks whose team is missing/'Unknown' (no Team selected in Notion) from the entire scorecard, including counts and averages (added 2026-10-12).
 
 **`phase()` function (~line 402):** Maps score ranges to phase labels and colors:
 - 0: Not started
@@ -118,8 +118,8 @@ Mars Men branded. Do not reference Protocol brand (separate personal project).
 
 ### Notion embed notes
 
-- Body padding is `8px 4px` to sit flush in the embed.
-- Notion overlays its embed controls (comment, expand, menu buttons) on the top-right corner of the iframe. They live in Notion's own page, so no z-index inside the widget can beat them. Fix (2026-10-12): the widget detects iframe embedding (`window.self !== window.top`) and adds class `embedded` to `body`, which gives `.qpill-wrap` a 110px right margin so the quarter picker clears the overlay zone. Standalone view is unaffected. The margin is reset to 0 under 640px since touch devices get no hover overlay and narrow headers can't spare the space. If Notion changes the size of its overlay controls, adjust the 110px.
+- Notion overlays its embed controls (comment, expand, menu buttons) on the top-right corner of the iframe. They live in Notion's own page, so no z-index inside the widget can beat them.
+- Body padding is `46px 4px 8px`. The 46px top padding nudges the whole widget down so the header row (title + quarter picker) sits below Notion's overlay zone. This is Maria's preferred fix (restored 2026-10-12). History warning: this padding has been accidentally reverted to `8px 4px` twice during refactors, which silently re-breaks the picker. If the picker is covered again, check this value first.
 - Cache busting: after deploying changes, the Notion embed URL may need a `?v=N` query param appended (increment N) to force a fresh load. Sometimes deleting and re-adding the embed block is needed.
 - The widget is synced to ~32 other pages via Notion synced blocks.
 
