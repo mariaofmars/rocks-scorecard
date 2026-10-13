@@ -410,6 +410,7 @@ function process(rocks) {
 }
 
 function phase(v) {
+  if (v >= 100) return { l: 'Complete', c: '#e8c9a0', bg: 'rgba(232,201,160,0.12)' };
   if (v <= 0) return { l: 'Not started', c: '#555', bg: 'rgba(80,80,80,0.15)' };
   if (v <= 25) return { l: 'Early stages', c: '#963821', bg: 'rgba(150,56,33,0.12)' };
   if (v <= 50) return { l: 'Building momentum', c: '#c24a1a', bg: 'rgba(194,74,26,0.1)' };
@@ -474,7 +475,8 @@ function render(state, data) {
         '<span><span class="ldot" style="background:linear-gradient(90deg,#3d1508,#5c2210)"></span>Early stages (0\u201325)</span>' +
         '<span><span class="ldot" style="background:linear-gradient(90deg,#963821,#c24a1a)"></span>Building momentum (26\u201350)</span>' +
         '<span><span class="ldot" style="background:linear-gradient(90deg,#d44a00,#FF5600)"></span>Strong progress (51\u201375)</span>' +
-        '<span><span class="ldot" style="background:linear-gradient(90deg,#FF5600,#ff8c42)"></span>Near completion (76\u2013100)</span>' +
+        '<span><span class="ldot" style="background:linear-gradient(90deg,#FF5600,#ff8c42)"></span>Near completion (76\u201399)</span>' +
+        '<span><span class="ldot" style="background:#e8c9a0"></span>Complete (100)</span>' +
       '</div>' +
     '</div>' +
 

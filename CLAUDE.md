@@ -87,7 +87,8 @@ Single self-contained HTML file. No build step, no dependencies beyond Google Fo
 - 1-25: Early stages
 - 26-50: Building momentum
 - 51-75: Strong progress
-- 76-100: Near completion
+- 76-99: Near completion
+- 100: Complete (cream #e8c9a0, added 2026-10-13 so finished departments stand out)
 
 **`grad()` function (~line 410):** Returns CSS gradient for progress bars based on score range. Uses a warm-to-hot orange ramp from the Mars Men brand palette.
 
