@@ -59,10 +59,10 @@ Status names are case-sensitive and must match the Notion database exactly, incl
 | Complete | 100 | Was previously "Done" |
 | On Hold | 25 | Flat stalled score |
 | Blocked | 25 | Flat stalled score |
-| Dropped | excluded | Not counted in average |
-| Missed | excluded | Not counted in average |
+| Dropped | removed | Filtered out of the scorecard entirely: no card, no counts, no breakdown bar |
+| Missed | excluded | Not counted in average, but still shown in counts and the breakdown bar |
 
-Dropped and Missed rocks still appear in the status breakdown bar and total rock count, but are excluded from the score calculation so they don't drag the department average down.
+Dropped and Missed are handled differently (Maria, 2026-10-13): a Dropped rock is removed from the scorecard entirely, including the total rock count, as if it never existed. A Missed rock still appears in the status breakdown bar and total rock count (footer shows "N missed"), but is excluded from the score calculation so it doesn't drag the department average down.
 
 ### Breakage risk
 
@@ -80,7 +80,7 @@ Single self-contained HTML file. No build step, no dependencies beyond Google Fo
 
 **`S_COLORS` object (~line 343):** Maps status names to hex colors for the status breakdown mini-bar on each department card.
 
-**`process()` function (~line 380):** Groups rocks by team, calculates weighted averages, sorts teams by score (highest first). Handles exclusion of Dropped/Missed. Also drops rocks whose team is missing/'Unknown' (no Team selected in Notion) from the entire scorecard, including counts and averages (added 2026-10-12).
+**`process()` function (~line 380):** Groups rocks by team, calculates weighted averages, sorts teams by score (highest first). Removes Dropped rocks and rocks whose team is missing/'Unknown' (no Team selected in Notion) from the entire scorecard, including counts and averages; Missed rocks stay in counts but are excluded from scoring via `EXCLUDED_STATUSES`.
 
 **`phase()` function (~line 402):** Maps score ranges to phase labels and colors:
 - 0: Not started

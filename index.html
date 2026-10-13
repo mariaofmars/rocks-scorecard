@@ -384,6 +384,10 @@ function process(rocks) {
   // Rocks with no Team selected in Notion arrive as team 'Unknown'; keep them
   // out of the scorecard entirely (cards, counts, averages) until assigned.
   rocks = rocks.filter(function(r) { return r.team && r.team !== 'Unknown'; });
+  // Dropped rocks leave the scorecard entirely, including totals. Missed rocks
+  // stay in counts and the breakdown bar but are excluded from scoring (Maria,
+  // 2026-10-13).
+  rocks = rocks.filter(function(r) { return r.status !== 'Dropped'; });
   var map = {};
   rocks.forEach(function(r) {
     if (!map[r.team]) map[r.team] = { name: r.team, rocks: [], sc: {} };
@@ -484,7 +488,7 @@ function render(state, data) {
         '<div class="dc-top"><span class="dc-nm">' + t.name + '</span><span class="dc-sc">' + t.score + '</span></div>' +
         '<div class="btrk"><div class="bfill" id="db-' + i + '" style="background:' + grad(t.score) + '"></div></div>' +
         '<div class="srow">' + segs + '</div>' +
-        '<div class="dc-ft"><span class="dc-cnt">' + t.rocks.length + ' rock' + (t.rocks.length !== 1 ? 's' : '') + (t.excludedCount ? ' (' + t.excludedCount + ' dropped/missed)' : '') + '</span><span class="ptag" style="color:' + ph.c + ';background:' + ph.bg + '">' + ph.l + '</span></div>' +
+        '<div class="dc-ft"><span class="dc-cnt">' + t.rocks.length + ' rock' + (t.rocks.length !== 1 ? 's' : '') + (t.excludedCount ? ' (' + t.excludedCount + ' missed)' : '') + '</span><span class="ptag" style="color:' + ph.c + ';background:' + ph.bg + '">' + ph.l + '</span></div>' +
       '</div>';
     }).join('') + '</div>' +
     '<div class="ft">Mars Men \u00B7 Rocks scorecard</div>';
